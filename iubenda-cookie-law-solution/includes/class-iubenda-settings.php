@@ -580,7 +580,7 @@ class Iubenda_Settings {
 		$iubenda_radar_api_configuration = (array) get_option( 'iubenda_radar_api_configuration', array() );
 
 		// Localize the script with new data.
-		$iub_js_vars = array(
+		$iub_main_js_params = array(
 			'site_url'                            => get_site_url(),
 			'plugin_url'                          => IUBENDA_PLUGIN_URL,
 			'site_language'                       => iubenda()->lang_current,
@@ -599,7 +599,7 @@ class Iubenda_Settings {
 		);
 
 		wp_enqueue_script( 'iubenda-radar', IUBENDA_PLUGIN_URL . '/assets/js/radar.js', array( 'jquery' ), iubenda()->version, true );
-		wp_localize_script( 'iubenda-radar', 'iub_js_vars', $iub_js_vars );
+		wp_localize_script( 'iubenda-radar', 'iubMainVars', $iub_main_js_params );
 
 		if ( ! in_array( (string) $page, array( 'toplevel_page_iubenda', 'settings_page_iubenda' ), true ) ) {
 			wp_enqueue_style( 'iubenda-admin', IUBENDA_PLUGIN_URL . '/assets/css/admin.css', array(), iubenda()->version );
@@ -608,7 +608,7 @@ class Iubenda_Settings {
 		wp_enqueue_style( 'iubenda-admin', IUBENDA_PLUGIN_URL . '/assets/css/style.css', array(), iubenda()->version );
 		wp_enqueue_script( 'iubenda-admin', IUBENDA_PLUGIN_URL . '/assets/js/admin.js', array( 'jquery' ), iubenda()->version, true );
 
-		wp_localize_script( 'iubenda-admin', 'iub_js_vars', $iub_js_vars );
+		wp_localize_script( 'iubenda-admin', 'iubMainVars', $iub_main_js_params );
 		wp_enqueue_script( 'iubenda-admin-tabs', IUBENDA_PLUGIN_URL . '/assets/js/tabs.js', array( 'jquery' ), iubenda()->version, true );
 	}
 
@@ -1021,7 +1021,7 @@ class Iubenda_Settings {
 			foreach ( $languages as $k => $v ) {
 				$code = iub_array_get( iubenda()->options['cs'], "code_{$k}" );
 				if ( $code ) {
-					$banner      = iubenda()->parse_configuration( $code, array( 'mode' => 'banner' ) );
+					$banner      = iubenda()->configuration_parser->extract_cs_config_from_code( $code, array( 'mode' => 'banner' ) );
 					$style       = iub_array_get( $banner, 'backgroundColor' ) ? 'White' : 'Dark';
 					$legislation = ( new Iubenda_CS_Product_Service() )->get_legislation_from_embed_code( $code );
 
@@ -1169,21 +1169,22 @@ class Iubenda_Settings {
 						$result['codes_statues'][ "{$product_name}_codes" ][] = ! empty( $code );
 
 						// get public_id & site_id if only the product key is CS and had a valid embed code.
-						$parsed_code = array_filter( iubenda()->parse_configuration( $code ) );
-						if ( 'cs' === $product_key && ! empty( $parsed_code ) ) {
+						if ( 'cs' === $product_key ) {
+							$site_id = iubenda()->configuration_parser->retrieve_info_from_script_by_key( $code, 'siteId' );
 							// getting site id to save it into Iubenda global option.
-							if ( iub_array_get( $parsed_code, 'siteId' ) ?? null ) {
-								$result['site_id'] = iub_array_get( $parsed_code, 'siteId' );
+							if ( ! empty( $site_id ) ) {
+								$result['site_id'] = $site_id;
 							}
 
-							// getting public id to save it into Iubenda global option by lang.
-							if ( iub_array_get( $parsed_code, 'cookiePolicyId' ) ?? null ) {
-								$result['public_ids'][ $lang_id ] = iub_array_get( $parsed_code, 'cookiePolicyId' );
+							$cookie_policy_id = iubenda()->configuration_parser->retrieve_info_from_script_by_key( $code, 'cookiePolicyId' );
+							// getting site id to save it into Iubenda global option.
+							if ( ! empty( $cookie_policy_id ) ) {
+								$result['public_ids'][ $lang_id ] = $cookie_policy_id;
 							}
 						}
 
 						if ( in_array( $product_key, array( 'pp', 'tc' ), true ) ) {
-							$parsed_code = iubenda()->parse_tc_pp_configuration( $code );
+							$parsed_code = iubenda()->configuration_parser->extract_tc_pp_config_from_code( $code );
 
 							// getting public id to save it into Iubenda global option lang.
 							if ( $parsed_code ) {
